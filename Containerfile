@@ -12,7 +12,7 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         # 基础系统监控与实用工具
         btop \
         fastfetch \
-        featherpad && \
+        featherpad \
         fontconfig \
         htop \
         # Wayland 核心与合成器
