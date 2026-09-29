@@ -3,7 +3,8 @@ FROM registry.suse.com/suse/sl-micro/6.2/baremetal-os-container:latest
 
 # 2. 添加 openSUSE 官方标准仓库（包含 XFCE 与图形界面套件）
 RUN zypper --non-interactive ar -cfp 90 https://download.opensuse.org/distribution/leap/16.0/repo/oss/ oss || true && \
-    zypper --non-interactive ar -cfp 90 https://download.opensuse.org/distribution/leap/16.0/repo/non-oss/ non-oss || true 
+    zypper --non-interactive ar -cfp 90 https://download.opensuse.org/distribution/leap/16.0/repo/non-oss/ non-oss || true && \
+    zypper --non-interactive ar -cfp 90 https://download.opensuse.org/repositories/M17N:/fonts/16.0/ M17N-fonts || true 
 
 # 3. 导入 GPG 密钥并安装 XFCE 桌面环境与 sddm
 RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
@@ -11,28 +12,29 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         # 基础系统监控与实用工具
         btop \
         fastfetch \
+        featherpad && \
         fontconfig \
+        google-noto-sans-cjk-fonts \
+        google-noto-serif-cjk-fonts \
         htop \
+        # Wayland 核心与合成器
+        labwc \
+        lxqt-session \
         meld \
-        noto-sans-cjk-fonts \
-        noto-serif-cjk-fonts \
-        syncthing \
         # 虚拟化集成支持（open-vm-tools-desktop 支持 Wayland 剪贴板与分辨率自适应）
         open-vm-tools \
         open-vm-tools-desktop \
-        # 显示管理器 (SDDM 在 Wayland 下表现良好)
-        sddm \
-        # Wayland 核心与合成器
-        labwc \
-        xwayland \
         # LXQt 核心桌面与会话
         patterns-lxqt-lxqt \
-        lxqt-session \
         # Qt Wayland 平台插件（LXQt 必须依赖此项以 Wayland 模式启动）
         qt6-wayland \
         # Qt/LXQt 生态常用终端与编辑器（可替代 gedit/pluma/xfce4-terminal）
         qterminal \
-        featherpad && \
+        # 显示管理器 (SDDM 在 Wayland 下表现良好)
+        sddm \
+        syncthing \
+        wqy-microhei-fonts \
+        xwayland && \
     fc-cache -f && \
     zypper clean -a
 
