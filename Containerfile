@@ -14,6 +14,8 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         htop \
         meld \
         syncthing \
+        google-noto-sans-cjk-fonts \
+        google-noto-serif-cjk-fonts \
         # 虚拟化集成支持（open-vm-tools-desktop 支持 Wayland 剪贴板与分辨率自适应）
         open-vm-tools \
         open-vm-tools-desktop \
@@ -30,6 +32,7 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         # Qt/LXQt 生态常用终端与编辑器（可替代 gedit/pluma/xfce4-terminal）
         qterminal \
         featherpad && \
+    fc-cache -f && \
     zypper clean -a
 
 # ------------------------------
