@@ -1,0 +1,126 @@
+name: Build Xfce OS Based On openSUSE
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_iso:
+        description: '是否发布 ISO 到 Release'
+        required: true
+        default: true
+        type: boolean
+
+  schedule:
+    # 每天 UTC 20:00（北京时间次日 04:00）运行
+    - cron: '0 20 * * *'
+
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/*.md'
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: my-wayland-opensuse-vm
+  ACTOR_LOWER: edwardwoodhub
+
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # =========================================================================
+      # 2. 登录阿里云 ACR
+      # =========================================================================
+      - name: Log in to Aliyun ACR
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          password: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+          
+      # 动态计算镜像 Tag 与包名（统一转换为小写）
+      - name: Compute Image Tag & Version
+        id: vars
+        run: |
+          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=${REPO_OWNER}/my-wayland-opensuse-vm" >> $GITHUB_OUTPUT
+
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "tag=daily-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=manual-${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=commit-${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      # =========================================================================
+      # 3. 单次构建并直接并发双推（GHCR + Aliyun ACR）
+      # =========================================================================
+      - name: Build and Push OCI Image to Registries
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Containerfile
+          push: true
+          # 关键两行：关闭 OCI 1.1 Attestation 元数据，完美兼容阿里云 ACR
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}:${{ steps.vars.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}:latest
+            ${{ secrets.ALIYUN_ACR_REGISTRY }}/${{ secrets.ALIYUN_ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}
+            ${{ secrets.ALIYUN_ACR_REGISTRY }}/${{ secrets.ALIYUN_ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:latest
+            
+      
+
+      
+          
+      # 步骤 2：打包成 LiveCD ISO
+      - name: Generate LiveCD ISO
+        run: |
+          docker run --rm -v $(pwd):/workspace -w /workspace --privileged \
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}:${{ steps.vars.outputs.tag }} \
+            elemental build-iso \
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}:${{ steps.vars.outputs.tag }} \
+            -o . \
+            -n my-wayland-opensuse-vm
+
+      # 步骤 2.5：将大于 2GB 的 ISO 切割为多个 1.5GB 的文件
+      - name: Split ISO
+        run: |
+          split -b 1500M my-wayland-opensuse-vm.iso my-wayland-opensuse-vm.iso.part-
+          # 这会生成 my-wayland-opensuse-vm.iso.part-aa, part-ab 等文件
+
+      # 步骤 3：发布切割后的 ISO 分卷
+      - name: Publish ISO to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: |
+          github.event_name == 'push' ||
+          github.event_name == 'schedule' ||
+          (github.event_name == 'workflow_dispatch' && inputs.release_iso == true)
+        with:
+          files: my-wayland-opensuse-vm.iso.part-*
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: "Build ${{ steps.vars.outputs.tag }}"
+          generate_release_notes: true
+          

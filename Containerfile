@@ -1,0 +1,109 @@
+# 1. 继承 SUSE 官方整机不可变底座
+FROM registry.suse.com/suse/sl-micro/6.2/baremetal-os-container:latest
+
+# 2. 添加 openSUSE 官方标准仓库（包含 XFCE 与图形界面套件）
+RUN zypper --non-interactive ar -cfp 90 https://download.opensuse.org/distribution/leap/16.0/repo/oss/ oss || true && \
+    zypper --non-interactive ar -cfp 90 https://download.opensuse.org/distribution/leap/16.0/repo/non-oss/ non-oss || true 
+
+# 3. 导入 GPG 密钥并安装 XFCE 桌面环境与 sddm
+RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
+    zypper --non-interactive in \
+        # 基础系统监控与实用工具
+        btop \
+        fastfetch \
+        htop \
+        meld \
+        syncthing \
+        # 虚拟化集成支持（open-vm-tools-desktop 支持 Wayland 剪贴板与分辨率自适应）
+        open-vm-tools \
+        open-vm-tools-desktop \
+        # 显示管理器 (SDDM 在 Wayland 下表现良好)
+        sddm \
+        # Wayland 核心与合成器
+        labwc \
+        xwayland \
+        # LXQt 核心桌面与会话
+        patterns-lxqt-lxqt \
+        lxqt-session \
+        # Qt Wayland 平台插件（LXQt 必须依赖此项以 Wayland 模式启动）
+        qt6-wayland \
+        # Qt/LXQt 生态常用终端与编辑器（可替代 gedit/pluma/xfce4-terminal）
+        qterminal \
+        featherpad && \
+    zypper clean -a
+
+# ------------------------------
+# 4a. 基础用户与系统权限配置
+# ------------------------------
+RUN groupadd -f wheel && \
+    # 创建 liveuser 默认用户
+    useradd -m -G wheel -s /bin/bash liveuser && \
+    echo "liveuser:liveuser" | chpasswd && \
+    # 设置 root 密码及免密 sudo
+    echo "root:root" | chpasswd && \
+    echo "%wheel ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# ------------------------------
+# 4b. 固化 sudo 安全路径
+# ------------------------------
+RUN echo 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers
+
+# ------------------------------
+# 4c. 固化 Recovery (8GB) 与 State (100GB) 分区大小
+# ------------------------------
+RUN mkdir -p /etc/elemental && \
+    printf 'install:\n  snapshotter:\n    type: btrfs\n  partitions:\n    recovery:\n      size: 8192\n    state:\n      size: 102400\n' > /etc/elemental/config.yaml
+
+
+
+# 1. 彻底屏蔽所有云边注册、自杀评估、自动重启以及网络阻断单元
+RUN mkdir -p /etc/systemd/system && \
+    ln -sf /dev/null /etc/systemd/system/elemental-system-agent.service && \
+    ln -sf /dev/null /etc/systemd/system/elemental-boot-assessment.service && \
+    ln -sf /dev/null /etc/systemd/system/elemental-boot-assessment.timer && \
+    ln -sf /dev/null /etc/systemd/system/elemental-register.service && \
+    ln -sf /dev/null /etc/systemd/system/elemental-register.timer && \
+    ln -sf /dev/null /etc/systemd/system/rebootmgr.service && \
+    ln -sf /dev/null /etc/systemd/system/NetworkManager-wait-online.service && \
+    ln -sf /dev/null /etc/systemd/system/plymouth-quit-wait.service && \
+    ln -sf /dev/null /etc/systemd/system/plymouth-start.service
+
+# 2. 从源头直接卸载 plymouth（防止它打包进 initramfs 从早期阶段卡死）
+RUN zypper rm -y --clean-deps plymouth plymouth-scripts || true
+
+# 3. 固化内核引导参数（双重保险，告知内核绝不拉起开机动画）
+RUN mkdir -p /etc/elemental/config.d && \
+    echo 'extra_cmdline: "plymouth.enable=0"' > /etc/elemental/config.d/cmdline.yaml
+
+# 2. 彻底掐死 systemd 内核与硬件看门狗超时（防止硬件强行重启）
+RUN mkdir -p /etc/systemd/system.conf.d && \
+    printf '[Manager]\nRuntimeWatchdogSec=0\nRebootWatchdogSec=0\nKExecWatchdogSec=0\n' > /etc/systemd/system.conf.d/disable-watchdogs.conf
+
+# 3. 固化 peter 用户、免密 sudo 与全局 secure_path 环境变量
+RUN useradd -m -G wheel -s /bin/bash peter && \
+    echo "peter:peter" | chpasswd && \
+    mkdir -p /etc/sudoers.d && \
+    echo 'peter ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/peter && \
+    chmod 0440 /etc/sudoers.d/peter && \
+    echo 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers
+
+
+# 5. 配置 sddm 开机自动免密登录 liveuser 进入 XFCE
+#RUN mkdir -p /etc/sddm/sddm.conf.d && \
+#    printf "[Seat:*]\nautologin-user=liveuser\nautologin-user-timeout=0\nuser-session=xfce\n" > /etc/sddm/sddm.conf.d/50-autologin.conf
+
+# 1. 显式指定 openSUSE 的默认显示管理器为 sddm
+RUN mkdir -p /etc/sysconfig && \
+    echo 'DISPLAYMANAGER="sddm"' > /etc/sysconfig/displaymanager
+
+# 2. 强行建立 display-manager 和 graphical.target 软链接
+RUN systemctl set-default graphical.target && \
+    mkdir -p /etc/systemd/system/graphical.target.wants && \
+    ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/display-manager.service && \
+    ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/graphical.target.wants/sddm.service
+
+
+# 7. 确保 vmtoolsd 服务开机自启
+RUN systemctl enable vmtoolsd.service
+
+
