@@ -11,11 +11,12 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         # 基础系统监控与实用工具
         btop \
         fastfetch \
+        fontconfig \
         htop \
         meld \
+        noto-sans-cjk-fonts \
+        noto-serif-cjk-fonts \
         syncthing \
-        google-noto-sans-cjk-fonts \
-        google-noto-serif-cjk-fonts \
         # 虚拟化集成支持（open-vm-tools-desktop 支持 Wayland 剪贴板与分辨率自适应）
         open-vm-tools \
         open-vm-tools-desktop \
