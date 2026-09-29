@@ -1,4 +1,4 @@
-name: Build Xfce OS Based On openSUSE
+name: Build LXQt OS Based On openSUSE
 
 on:
   workflow_dispatch:
