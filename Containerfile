@@ -14,8 +14,6 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         fastfetch \
         featherpad && \
         fontconfig \
-        google-noto-sans-cjk-fonts \
-        google-noto-serif-cjk-fonts \
         htop \
         # Wayland 核心与合成器
         labwc \
