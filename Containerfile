@@ -14,10 +14,13 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         fastfetch \
         featherpad \
         fontconfig \
+        gedit \
         htop \
         # Wayland 核心与合成器
         labwc \
         lxqt-session \
+        lxqt-wayland-session \
+        lxqt-labwc-session \
         meld \
         # 虚拟化集成支持（open-vm-tools-desktop 支持 Wayland 剪贴板与分辨率自适应）
         open-vm-tools \
