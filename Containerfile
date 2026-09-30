@@ -35,6 +35,15 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         sddm \
         syncthing \
         wqy-microhei-fonts \
+        # 显示输出控制与图形管理
+        wlr-randr \
+        kanshi \
+        wdisplays \
+        # 屏幕截图与剪贴板支持
+        grim \
+        slurp \
+        screengrab \
+        wl-clipboard \
         xwayland && \
     fc-cache -f && \
     zypper clean -a
