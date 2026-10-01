@@ -15,7 +15,10 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         featherpad \
         fontconfig \
         gedit \
+        grim \
         htop \
+        kanshi \
+        konsole \
         # Wayland 核心与合成器
         labwc \
         lxqt-session \
@@ -33,16 +36,14 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         qterminal \
         # 显示管理器 (SDDM 在 Wayland 下表现良好)
         sddm \
+        slurp \
+        screengrab \
         syncthing \
         wqy-microhei-fonts \
         # 显示输出控制与图形管理
         wlr-randr \
-        kanshi \
         wdisplays \
         # 屏幕截图与剪贴板支持
-        grim \
-        slurp \
-        screengrab \
         wl-clipboard \
         xwayland && \
     fc-cache -f && \
