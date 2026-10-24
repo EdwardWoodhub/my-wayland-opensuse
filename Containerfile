@@ -30,6 +30,7 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         open-vm-tools-desktop \
         # LXQt 核心桌面与会话
         patterns-lxqt-lxqt \
+        python3 \
         # Qt Wayland 平台插件（LXQt 必须依赖此项以 Wayland 模式启动）
         qt6-wayland \
         # Qt/LXQt 生态常用终端与编辑器（可替代 gedit/pluma/xfce4-terminal）
@@ -39,6 +40,7 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh && \
         slurp \
         screengrab \
         syncthing \
+        uv \
         wqy-microhei-fonts \
         # 显示输出控制与图形管理
         wlr-randr \
