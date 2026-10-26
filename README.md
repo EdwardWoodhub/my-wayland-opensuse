@@ -8,7 +8,7 @@ Containerfile
 
 [Elemental - Immutable Linux for Rancher](https://elemental.docs.rancher.com/custom-images/)
 
-；选择openSUSE的镜像更容易自定义：
+选择openSUSE的镜像更容易自定义：
 
 [Portal:Container/Base Container - openSUSE Wiki](https://en.opensuse.org/Portal:Container/Base_Container)
 
